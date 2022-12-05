@@ -1,0 +1,231 @@
+/* Derived from Justin Starry's work https://github.com/jstarry/arduino-control-panel, which is
+under MIT license
+
+Shuangyi Tong <shuangyi.tong@eng.ox.ac.uk>
+created on Apr 15, 2021
+*/
+
+* {
+    box-sizing: border-box;
+}
+  
+html {
+    font-family: monospace;
+    font-size: 1.5em;
+    font-weight: bold;
+    position: absolute;
+    background: none;
+    top: 0px;
+    left: 0px;
+    bottom: 0px;
+    right: 0px;
+    height: 100%;
+    width: 100%;
+}
+
+body {
+    position: absolute;
+    display: flex;
+    background: none;
+    top: 0px;
+    left: 0px;
+    bottom: 0px;
+    right: 0px;
+    margin: 0px;
+    padding: 0;
+    margin: 0;
+    overflow: auto;
+} 
+
+.side-bar {
+    width: 80px;
+    min-width: 80px;
+    background: #FAFAFA;
+    border-right: 1px solid #DDD;
+}
+
+.nav-tabs {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding-top: 64px;
+}
+
+.nav-tab {
+    padding: 15px 0px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    border-top: 1px solid #FAFAFA;
+    border-bottom: 1px solid #FAFAFA;
+}
+
+.active-tab.nav-tab {
+    cursor: auto;
+    border-top: 1px solid #EEE;
+    border-bottom: 1px solid #EEE;
+    background: #FFF;
+}
+
+.nav-icon-wrapper {
+    width: 40px;
+    height: 40px;
+    border-radius: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-tab svg.svg-inline--fa {
+    color: #999;
+    width: 22px;
+    height: 22px;
+}
+
+.active-tab .nav-icon-wrapper {
+    background: rgba(223,147,148, 0.1);
+    border: 1px solid rgba(223,147,148, 1);
+}
+.active-tab svg.svg-inline--fa {
+    color: rgb(223,147,148);
+}
+  
+/* horizontal panel*/
+
+.panel-container {
+    display: flex;
+    flex-direction: row;
+    border: 1px solid #FAFAFA;
+    width: 100%;
+}
+
+.panel-left {
+    flex: 0 0 auto;
+    /* only manually resize */
+    padding: 10px;
+    width: 300px;
+    min-height: 200px;
+    min-width: 150px;
+    max-width: 80%;
+    white-space: nowrap;
+    background: #fff;
+    overflow: auto;
+}
+
+.splitter {
+    flex: 0 0 auto;
+    width: 18px;  
+    background: center center no-repeat #999999;
+    min-height: 200px;
+    cursor: col-resize;  
+}
+
+.panel-right {
+    flex: 1 1 auto;
+    /* resizable */
+    padding: 10px;
+    width: 100%;
+    min-height: 200px;
+    min-width: 200px;
+    background: #FAFAFA;
+    overflow: auto;
+}
+
+.device-entry {
+    background-color: #FAFAFA;
+    border-bottom: 3px solid #DDD;
+    margin-bottom: 0.5em;
+}
+
+.device-select-entry {
+    background-color: #fff;
+}
+
+/* .no_vertical_margin {
+    margin-top: 0em;
+    margin-bottom: 0em;
+} */
+
+#detail-display {
+    margin: 1em;
+    width: 90%;
+}
+
+.tab:hover {
+    background-color: #ddd;
+}
+
+.line-chart {
+    height: 10em;
+}
+
+p {
+    word-break: break-word;
+    white-space: normal;
+}
+/* The switch - the box around the slider */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+  }
+  
+  /* Hide default HTML checkbox */
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  /* The slider */
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: .4s;
+    transition: .4s;
+  }
+  
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    -webkit-transition: .4s;
+    transition: .4s;
+  }
+  
+  input:checked + .slider {
+    background-color: #2196F3;
+  }
+  
+  input:focus + .slider {
+    box-shadow: 0 0 1px #2196F3;
+  }
+  
+  input:checked + .slider:before {
+    -webkit-transform: translateX(26px);
+    -ms-transform: translateX(26px);
+    transform: translateX(26px);
+  }
+  
+  /* Rounded sliders */
+  .slider.round {
+    border-radius: 34px;
+  }
+  
+  .slider.round:before {
+    border-radius: 50%;
+  }

@@ -1,0 +1,28 @@
+{
+  "name": "pain-lab-control-panel",
+  "version": "1.0.0",
+  "description": "Control Panel App for Experiments in Pain Lab",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron .",
+    "debug": "electron . --debug"
+  },
+  "keywords": [],
+  "author": "Shuangyi Tong <shuangyi.tong@eng.ox.ac.uk>",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^12.0.2"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^5.15.3",
+    "JSONStream": "^1.3.5",
+    "async-mutex": "^0.3.1",
+    "bean": "^1.0.15",
+    "codemirror": "^5.61.0",
+    "flotr2": "^0.1.0",
+    "fs-extra": "^10.0.1",
+    "jquery": "^3.6.0",
+    "underscore": "^1.13.1"
+  }
+}

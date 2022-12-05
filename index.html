@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Pain Lab Control Panel</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval';" />
+    <link rel="stylesheet" href="frontend/css/index.css">
+    <script>window.$ = window.jQuery = require('jquery');</script>
+    <script src="frontend/js/jquery-resizable.js"></script>
+    <script src="node_modules/codemirror/lib/codemirror.js"></script>
+    <link rel="stylesheet" href="node_modules/codemirror/lib/codemirror.css">
+    <script src="node_modules/codemirror/mode/javascript/javascript.js"></script>
+    <script type="text/javascript" src="node_modules/bean/bean.min.js"></script>
+    <script type="text/javascript" src="node_modules/underscore/underscore-min.js"></script>
+    <script type="text/javascript" src="node_modules/flotr2/flotr2.nolibs.js"></script>
+</head>
+<body style="background: #FAFAFA;">
+    <nav class="side-bar">
+        <div class="nav-tabs">
+            <div id="device-detail-button" onclick="switchTab('device-detail-button', 'device-detail-tab')" class="nav-tab active-tab tab">
+                <div class="nav-icon-wrapper">
+                <i class="fas fa-project-diagram"></i>
+                </div>
+            </div>
+            <div id="script-button" onclick="switchTab('script-button', 'script-tab')" class="nav-tab tab">
+                <div class="nav-icon-wrapper">
+                    <i class="fas fa-file-code"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <div id="device-detail-tab" class="panel-container">
+        <div id="device-select-panel" class="panel-left">
+
+        </div>
+
+        <div class="splitter">
+        </div>
+
+        <div class="panel-right">
+            <div id="detail-display">
+
+            </div>
+        </div>
+    </div>
+    <div id="script-tab" class="panel-container", style="display: none;">
+        <div id="script-select-panel" class="panel-left">
+
+        </div>
+
+        <div class="splitter">
+        </div>
+
+        <div class="panel-right">
+            <div id="script-actions">
+                Activated Script: <div id="activated-script-name">None</div>
+                <button id="activate-script" onclick="runUserScript()">Activate</button>
+                <button id="save-script" onclick="saveUserScript()">Save</button>
+            </div>
+            <div id="script-display">
+
+            </div>
+        </div>
+    </div>
+</body>
+<script type="text/javascript" defer src="node_modules/@fortawesome/fontawesome-free/js/all.js"></script>
+<script src="frontend/js/renderer.js"></script>
+<script>
+    $(".panel-left").resizable({
+        handleSelector: ".splitter",
+        resizeHeight: false
+    });
+
+    $(".panel-top").resizable({
+        handleSelector: ".splitter-horizontal",
+        resizeWidth: false
+    });
+
+    var codeMirrorEditor = CodeMirror(document.getElementById("script-display"), {
+        value: "",
+        mode:  "javascript"
+    });
+
+    codeMirrorEditor.setSize(null, 1200);
+
+    requestSavedScriptList();
+
+    /* Box-Muller transform normal distribution generator, Mean 0 variance 1
+       Author: https://stackoverflow.com/a/36481059
+    */
+    function randn_bm() {
+        var u = 0, v = 0;
+        while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+        while(v === 0) v = Math.random();
+        return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    }
+
+    /* Fisher-Yates (aka Knuth) Shuffle
+       Credit: https://stackoverflow.com/a/2450976
+    */
+    function inplace_shuffle(array) {
+        let currentIndex = array.length,  randomIndex;
+        
+        // While there remain elements to shuffle...
+        while (currentIndex != 0) {
+        
+            // Pick a remaining element...
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+        
+            // And swap it with the current element.
+            [array[currentIndex], array[randomIndex]] = [
+            array[randomIndex], array[currentIndex]];
+        }
+        
+        return array;
+    }
+</script>
+</html>
