@@ -4,6 +4,7 @@ Version 0.35 - 11/18/2019
 © 2015-2019 Rick Strahl, West Wind Technologies
 www.west-wind.com
 Licensed under MIT License
+https://github.com/RickStrahl/jquery-resizable
 */
 (function(factory, undefined) {
 	if (typeof define === 'function' && define.amd) {

@@ -13,6 +13,7 @@
     <script type="text/javascript" src="node_modules/bean/bean.min.js"></script>
     <script type="text/javascript" src="node_modules/underscore/underscore-min.js"></script>
     <script type="text/javascript" src="node_modules/flotr2/flotr2.nolibs.js"></script>
+    <script type="text/javascript" src="node_modules/fili/dist/fili.min.js"></script>
 </head>
 <body style="background: #FAFAFA;">
     <nav class="side-bar">
@@ -57,6 +58,19 @@
                 <button id="activate-script" onclick="runUserScript()">Activate</button>
                 <button id="save-script" onclick="saveUserScript()">Save</button>
             </div>
+            <hr>
+            <div id="runtime-display-wrapper">
+                Runtime Monitoring Panel
+                <div id="runtime-display">
+                </div>
+            </div>
+            <hr>
+            <div id="interact-display-wrapper">
+                Interaction Panel
+                <div id="interact-display">
+                </div>
+            </div>
+            <hr>
             <div id="script-display">
 
             </div>

@@ -18,6 +18,7 @@ var sockets = {};
 var socketIDDeviceIDMap = {};
 var deviceIDSocketIDMap = {};
 var waitingReply = {};
+var lastSentCommand = {}; // recording purposes
 var errorState = {};
 var controlDataQueue = {};
 var simplifiedReplySockets = {};
@@ -35,6 +36,7 @@ function makeDataHandler(dataHubObj) {
 
                 waitingReply[socketID] = 1;
                 sockets[socketID].write(sendBuf, () => {});
+                lastSentCommand[socketID] = controlDataQueue[socketID][0]; // record last send command
                 controlDataQueue[socketID].shift();
 
                 sendControlData(socketID);
@@ -51,7 +53,7 @@ function makeDataHandler(dataHubObj) {
             if (arg[0] == 'log') {             
                 let logFrame = arg[1];
                 logFrame['timestamp'] = Date.now();
-                dataHub.controlData["log"].push(logFrame);
+                dataHub.writeLog(logFrame);
             } else {
                 console.log("Command send to device " + arg[0] + " does not exist! Did you put the wrong device id code?");
             }
@@ -186,7 +188,7 @@ function makeListener(dataHandler, socket) {
                         waitingReply[socketID] = 0;
                         dataHandler.sender(socketID);
                         handled = true;
-                        console.log("Device sent FAIL");
+                        console.log("Device sent FAIL on command: " + JSON.stringify(lastSentCommand[socketID]));
                         // TODO: record control reply
                     } // else continue
                 }

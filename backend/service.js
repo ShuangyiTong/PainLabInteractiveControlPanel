@@ -4,6 +4,7 @@
 */
 
 const { ipcMain } = require('electron');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path')
 
@@ -38,5 +39,14 @@ ipcMain.on('save-script-content', (event, arg) => {
         if (err) {
             console.log(err);
         }
+    });
+});
+
+ipcMain.on('start-local-program', (event, arg) => {
+    const process = spawn(arg[0], arg[1], {
+        cwd: path.dirname(arg[0]),
+        detached: true,
+        stdio: 'ignore',
+        shell: arg[2]
     });
 });

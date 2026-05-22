@@ -11,7 +11,7 @@ const { env } = require('./env.js');
 const Buffer = require('buffer').Buffer;
 
 // Modified from https://www.bennadel.com/blog/3232-parsing-and-serializing-large-objects-using-jsonstream-in-node-js.htm
-function dumpJSONArray(fileName, arr) {
+function dumpJSONArray(fileName, arr, callback) {
   var transformStream = JSONStream.stringify();
   var outputStream = fs.createWriteStream( fileName );
   transformStream.pipe( outputStream );
@@ -24,6 +24,7 @@ function dumpJSONArray(fileName, arr) {
       "finish",
       function handleFinish() {
           console.log("finish writing " + fileName);
+          if (callback) callback();
       }
   );
 }
@@ -36,6 +37,13 @@ class DataHub {
         this.deviceData = {};
         // device_identifier : control data object
         this.controlData = { "log": [] } // a default log object
+        // auto save
+        this.timestamp = Date.now().toString()
+        // fs.mkdir('instance/autosave/' + this.timestamp) TODO: this call is asynchronous, needs to be fixed, wait for complete
+        // this.autosave_control = fs.openSync('instance/autosave/' + this.timestamp + '/control_data.autosave', 'w');
+        // this.autosave_device_data = fs.openSync('instance/autosave/' + this.timestamp + '/device_data.autosave', 'w');
+
+        this.activeWrites = 0;
 
         const template = [
             // { role: 'appMenu' }
@@ -61,8 +69,17 @@ class DataHub {
                     dialog.showSaveDialog(
                     { defaultPath: 'test', filters: { extensions: ["json"] } }).then(
                         result => {
+                            let activeWrites = Object.keys(this.deviceData).length + 2;
+                            const onWriteFinished = () => {
+                                activeWrites--;
+                                if (activeWrites == 0) {
+                                    dialog.showMessageBox({ message: "All device data saved."});
+                                }
+                            };
+
                             let fileName = result.filePath + "__Device_Descriptors__.json";
                             fs.outputJson(fileName, this.deviceDescriptors, function (err) {
+                              onWriteFinished();
                               if (err != null) {
                                 console.log(err);
                               }
@@ -70,6 +87,7 @@ class DataHub {
 
                             fileName = result.filePath + "__Control_Data__.json";
                             fs.outputJson(fileName, this.controlData, function (err) {
+                              onWriteFinished();
                               if (err != null) {
                                 console.log(err);
                               }
@@ -78,7 +96,7 @@ class DataHub {
                             Object.keys(this.deviceData).forEach(deviceID => {
                               let fileName = result.filePath + "__Device_Data_" + this.deviceDescriptors[deviceID]["device_type"] + "__.json";
 
-                              dumpJSONArray(fileName, this.deviceData[deviceID]);
+                              dumpJSONArray(fileName, this.deviceData[deviceID], onWriteFinished);
                             });
                         }
                     ).catch(err => {
@@ -86,10 +104,10 @@ class DataHub {
                     });
                   }
                 },
-                {
-                    label: 'Clear Data (incomplete)', 
-                    click: () => { this.deviceDescriptors = {}; this.deviceData = {}; this.controlData = {} }
-                },
+                // {
+                //     label: 'Clear Data (incomplete)', 
+                //     click: () => { this.deviceDescriptors = {}; this.deviceData = {}; this.controlData = {} }
+                // },
                 isMac ? { role: 'close' } : { role: 'quit' }
               ]
             },
@@ -225,11 +243,19 @@ class DataHub {
               frameBatch.frames.push(frameObj);
             }
             this.deviceData[deviceID].push(frameBatch);
+            // fs.write(this.autosave_device_data, "\"" + deviceID + "\": " + JSON.stringify(frameBatch) + "\n");
+
             // send frame batch to front end
             if (env.winRef) {
-              let frameToFront = frameBatch.frames[frameBatch.frames.length - 1];
-              frameToFront["timestamp"] = frameBatch.timestamp;
-              env.winRef.webContents.send('new-dataframe', [deviceID, frameToFront]);
+              if (frameBatch.frames.length > 0) {
+                if (this.deviceDescriptors[deviceID]['visual_report']['expand_packed']) {
+                  env.winRef.webContents.send('new-dataframe', [deviceID, frameBatch.frames]);
+                } else {
+                  let frameToFront = frameBatch.frames[frameBatch.frames.length - 1];
+                  frameToFront["timestamp"] = frameBatch.timestamp;
+                  env.winRef.webContents.send('new-dataframe', [deviceID, frameToFront]);
+                }
+              }
             }
           } else {
             throw new Error("Not implemented yet");
@@ -246,6 +272,7 @@ class DataHub {
             }
             frameObj['timestamp'] = Date.now();
             this.deviceData[deviceID].push(frameObj);
+            // fs.write(this.autosave_device_data, "\"" + deviceID + "\": " + JSON.stringify(frameObj) + "\n");
 
             // send the frame to front end
             if (env.winRef) {
@@ -253,7 +280,7 @@ class DataHub {
                 let frameToFront = {timestamp: frameObj.timestamp};
                 for (const prop in frameObj) {
                   if (prop != 'timestamp' && Array.isArray(frameObj[prop])) {
-                    frameToFront[prop] = frameObj[prop][frameObj[prop].length - 1];
+                    frameToFront[prop] = frameObj[prop];
                   } 
                 }
                 env.winRef.webContents.send('new-dataframe', [deviceID, frameToFront]);
@@ -270,17 +297,27 @@ class DataHub {
 
     prepareControlData(deviceID, obj) {
         let frameFormat = this.deviceDescriptors[deviceID]['control_pack_order'];
+        let controlFrame = null;
 
         if (frameFormat) {
-            throw new Error("not implemented yet.");
+            if (frameFormat == "serial") {
+                controlFrame = Buffer.from("abcd" + obj['serial'], 'utf8'); // "abcd" is the placeholder for 4 byte BE length
+            } else {
+                throw new Error("not implemented yet.");
+            }
         } else {
-            let controlFrame = Buffer.from("0000" + JSON.stringify(obj), 'utf8'); // "0000" is the placeholder for 4 byte BE length
-
-            obj['timestamp'] = Date.now();
-            this.controlData[deviceID].push(obj);
-
-            return controlFrame;
+            controlFrame = Buffer.from("abcd" + JSON.stringify(obj), 'utf8'); // "abcd" is the placeholder for 4 byte BE length
         }
+
+        obj['timestamp'] = Date.now();
+        this.controlData[deviceID].push(obj);
+        // fs.write(this.autosave_control, "\"" + deviceID + "\": " + JSON.stringify(obj) + "\n");
+        return controlFrame;
+    }
+
+    writeLog(obj) {
+      // fs.write(this.autosave_control, "\"log\": " + JSON.stringify(obj) + "\n");
+      this.controlData["log"].push(obj);
     }
 }
 

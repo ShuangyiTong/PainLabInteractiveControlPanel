@@ -28,7 +28,7 @@ wlanServer.on('error', (err) => {
 
 var port = 8124;
 var localhost = '127.0.0.1';
-var wlanAddress = '192.168.0.125'; // Lab server LAN address
+var wlanAddress = '169.254.223.107'; // Lab server LAN address
 
 localhostServer.listen(port, localhost, () => {
     console.log('localhost server bind to ' + localhost + ':' + port);

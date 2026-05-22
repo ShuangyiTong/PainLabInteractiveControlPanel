@@ -6,6 +6,9 @@
 const { ipcRenderer } = require('electron');
 
 const Mutex = require('async-mutex').Mutex;
+const bci = require('bcijs');
+const FFT = require('fft-js').fft;
+const FFTUtils = require('fft-js').util;
 
 var current_selected_script;
 
@@ -17,6 +20,10 @@ function sendCommand(device_id, field, value) {
 
 function sendMultipleCommands(device_id, obj) {
     ipcRenderer.send('control-data', [ device_id, obj]);
+}
+
+function startLocalProgram(exec_path, args, need_shell=false) {
+    ipcRenderer.send('start-local-program', [ exec_path, args, need_shell ]);
 }
 
 function getTupleValue(duplicates, id_prefix) {
@@ -206,26 +213,48 @@ function renderDataFrame(device_id, data_frame) {
                         value_range = visual_value_range[device_data_field];
                     }
 
-                    for (var i = 0; i < dup; i++) {
-                        series_data = dup > 1 ? data_frame[device_data_field][i] : data_frame[device_data_field];
-                        if (Array.isArray(series_data)) {
-                            // handle packed but not binary ordered condition
-                            device_rendered[device_id][device_data_field][i] 
-                                = device_rendered[device_id][device_data_field][i].concat(series_data.map(x => [data_frame.timestamp, x]));
-                        } else {
-                            device_rendered[device_id][device_data_field][i].push([data_frame.timestamp, series_data]);
-                        }
-                        let pop_size = device_rendered[device_id][device_data_field][i].length - max_data;
-                        for (var j = 0; j < pop_size; j++) {
-                            device_rendered[device_id][device_data_field][i].shift();
+                    if (Array.isArray(data_frame)) {
+                        for (let df of data_frame) {
+                            for (var i = 0; i < dup; i++) {
+                                series_data = dup > 1 ? df[device_data_field][i] : df[device_data_field];
+                                if (Array.isArray(series_data)) {
+                                    // handle packed but not binary ordered condition
+                                    device_rendered[device_id][device_data_field][i] 
+                                        = device_rendered[device_id][device_data_field][i].concat(series_data.map(x => [df.timestamp, x]));
+                                } else {
+                                    device_rendered[device_id][device_data_field][i].push([df.timestamp, series_data]);
+                                }
+                                let pop_size = device_rendered[device_id][device_data_field][i].length - max_data;
+                                for (var j = 0; j < pop_size; j++) {
+                                    device_rendered[device_id][device_data_field][i].shift();
+                                }
+                            }
                         }
                     }
+                    else
+                    {
+                        for (var i = 0; i < dup; i++) {
+                            series_data = dup > 1 ? data_frame[device_data_field][i] : data_frame[device_data_field];
+                            if (Array.isArray(series_data)) {
+                                // handle packed but not binary ordered condition
+                                device_rendered[device_id][device_data_field][i] 
+                                    = device_rendered[device_id][device_data_field][i].concat(series_data.map(x => [data_frame.timestamp, x]));
+                            } else {
+                                device_rendered[device_id][device_data_field][i].push([data_frame.timestamp, series_data]);
+                            }
+                            let pop_size = device_rendered[device_id][device_data_field][i].length - max_data;
+                            for (var j = 0; j < pop_size; j++) {
+                                device_rendered[device_id][device_data_field][i].shift();
+                            }
+                        }
+                    }
+
                     if (selected_devices.has(device_id)) {
                         if (Date.now() - last_rendered[device_id][device_data_field] > render_interval) {
                             graph = Flotr.draw(container, device_rendered[device_id][device_data_field], {
                                 xaxis : {
                                     mode : 'time',
-                                    min : data_frame.timestamp - (rolling_time * 1000)
+                                    min : (Array.isArray(data_frame) ? data_frame[0].timestamp : data_frame.timestamp) - (rolling_time * 1000)
                                 },
                                 yaxis : value_range
                             });
@@ -358,10 +387,77 @@ ipcRenderer.on('new-descriptor', (event, arg) => {
 });
 
 var actionFunction = (device_id, dataframe) => {};
+var interactiveScope = {};
+var runtime_display_settings = {};
+var interactive_settings = {};
+function sliceScript(script) {
+    let cutWord = "EndofInteraction";
+    let cutPos = script.indexOf(cutWord);
+    if (cutPos == -1) {
+        return ["", script];
+    }
+    cutPos += cutWord.length;
+    // remove last EndofInteraction line: https://stackoverflow.com/a/47897930
+    return [script.slice(0, cutPos).replace(/\n.*$/, ''), script.slice(cutPos)];
+}
+
+function decodeForInteractiveDSLDOM(interactiveDSL) {
+    if (interactiveDSL == "") {
+        return ["", ""];
+    }
+    jsonFromDSL = JSON.parse(interactiveDSL);
+
+    runtime_display_settings = jsonFromDSL["display_params"];
+    interactive_settings = jsonFromDSL["updatable_params"];
+
+    runtime_DOM = "";
+    interactive_DOM = "";
+
+    for (const prop in runtime_display_settings) {
+        let id_suffix = runtime_display_settings[prop].replace('.', '-');;
+        runtime_DOM += `<div> ${ prop }: <span id="__runtime_display__${ id_suffix }"></span>`;
+        runtime_DOM += `</div>`;
+    }
+
+    for (const prop in interactive_settings) {
+        let id_suffix = interactive_settings[prop][0];
+        interactive_DOM += `<div> ${ prop }:`;
+        interactive_DOM += `<input type='text' id="__interative__${ id_suffix }"/>`;
+        interactive_DOM += `<input id="__interative__${ id_suffix }-submit" type="submit" value="Submit">`
+        interactive_DOM += `<script>$( "#__interative__${ id_suffix }-submit" ).click(function() {
+                            interactiveScope[interactive_settings["${ prop }"][0]] = window[interactive_settings["${ prop }"][1]]($("#__interative__${ id_suffix }").val());
+                            sendCommand("log", "interactive_settings_" + "${ prop }", $("#__interative__${ id_suffix }").val());
+                            });
+                            </script>`
+        interactive_DOM += `</div>`;
+    }
+
+    return [runtime_DOM, interactive_DOM];
+}
+
 function runUserScript() {
     let script = codeMirrorEditor.getValue();
+    let separatedScript = sliceScript(script);
+    let interactiveDSL = separatedScript[0], runtimeScript = separatedScript[1];
+    let decodedDOM = decodeForInteractiveDSLDOM(interactiveDSL);
+    $("#runtime-display").html(decodedDOM[0]);
+    $("#interact-display").html(decodedDOM[1]);
     $("#activated-script-name").html(current_selected_script);
-    eval(script);
+    interactiveScope = {};
+    eval(runtimeScript);
+}
+
+function updateRuntimeDisplay() {
+    for (const prop in runtime_display_settings) {
+        let id_suffix = runtime_display_settings[prop].replace('.', '-');
+        interactiveScope_properties = runtime_display_settings[prop].split(".").reverse();
+        content = interactiveScope[interactiveScope_properties[0]];
+        remaining_props = interactiveScope_properties.slice(1);
+        for (const subprop in remaining_props) {
+            content = interactiveScope[remaining_props[subprop]][content];
+        }
+        $(`#__runtime_display__${ id_suffix }`).html(content);
+    }
 }
 
 function saveUserScript() {
@@ -371,8 +467,9 @@ function saveUserScript() {
 
 ipcRenderer.on('new-dataframe', (event, arg) => {
     let device_id = arg[0], dataframe = arg[1];
-    renderDataFrame(device_id, dataframe);
     actionFunction(device_id, dataframe);
+    updateRuntimeDisplay();
+    renderDataFrame(device_id, dataframe); // TODO: Need to dispatch this to separate thread to avoid performance drag from rendering
 });
 
 function makeScriptEntry(script_name) {
